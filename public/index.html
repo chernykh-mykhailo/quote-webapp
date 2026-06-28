@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Quotly Archive</title>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="dark-theme">
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <button id="back-btn" class="icon-btn hidden" aria-label="Go back">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/></svg>
+        </button>
+        <div class="group-info">
+          <h1 id="group-title">Quotly Archive</h1>
+          <p id="group-subtitle">Select a group to view quotes</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <span id="theme-badge" class="badge">Theme: Auto</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="app-main">
+      <!-- Loading State -->
+      <div id="loading-screen" class="screen">
+        <div class="spinner"></div>
+        <p>Connecting to database...</p>
+      </div>
+
+      <!-- Unauthorized / Error Screen -->
+      <div id="error-screen" class="screen hidden">
+        <div class="error-icon">🔒</div>
+        <h2>Access Denied</h2>
+        <p id="error-message">Please open this app from Telegram.</p>
+      </div>
+
+      <!-- Groups List Screen -->
+      <div id="groups-screen" class="screen hidden">
+        <div class="welcome-banner">
+          <h2>💫 My Groups</h2>
+          <p>Select a group to browse generated quote stickers</p>
+        </div>
+        <div id="groups-list" class="list-container">
+          <!-- Group items will be injected here -->
+        </div>
+        <div id="empty-groups" class="empty-state hidden">
+          <div class="empty-icon">💬</div>
+          <h3>No Groups Found</h3>
+          <p>You haven't generated quotes in any group yet. Add the bot to your group and run <code>/q</code> on some messages!</p>
+        </div>
+      </div>
+
+      <!-- Quotes Feed Screen -->
+      <div id="quotes-screen" class="screen hidden">
+        <div id="quotes-feed" class="chat-container">
+          <!-- Quotes will be injected here as Telegram-like chat messages -->
+        </div>
+        <div id="empty-quotes" class="empty-state hidden">
+          <div class="empty-icon">📜</div>
+          <h3>No Quotes Yet</h3>
+          <p>This group has no saved quotes in the archive yet.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
