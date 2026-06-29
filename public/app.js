@@ -137,7 +137,8 @@ function getUserAvatarHtml(author) {
     // Fetch Telegram web avatar redirector
     const userpicUrl = `https://t.me/i/userpic/320/${author.username}.jpg`;
     return `
-      <div class="avatar" style="background-image: url('${userpicUrl}'), ${color}; background-size: cover; background-position: center;">
+      <div class="avatar" style="background: ${color}">
+        <img src="${userpicUrl}" class="avatar-img" onerror="this.style.display='none'" alt="">
         <span class="avatar-initials">${initials}</span>
       </div>
     `;
