@@ -231,6 +231,7 @@ body {
   margin-bottom: 16px;
   overflow-x: auto;
   padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch; /* Momentum scrolling */
 }
 
 .subtabs-container::-webkit-scrollbar {
@@ -506,6 +507,7 @@ body {
   overflow-x: auto;
   padding-bottom: 12px;
   margin-bottom: 24px;
+  -webkit-overflow-scrolling: touch; /* Momentum scrolling */
 }
 
 .horizontal-slider::-webkit-scrollbar {
@@ -551,8 +553,13 @@ body {
 
 /* Floating bottom button */
 .bottom-action-container {
-  padding: 16px 0;
-  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  background-color: var(--tg-bg);
+  padding: 12px 16px;
+  margin: 0 -16px -16px -16px; /* Span full screen width by negating padding */
+  border-top: 1px solid var(--border-color);
+  z-index: 10;
 }
 
 .primary-action-btn {

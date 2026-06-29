@@ -136,6 +136,17 @@ function getAvatarColor(name, id) {
   return `linear-gradient(135deg, hsl(${h}, 70%, 55%) 0%, hsl(${(h + 40) % 360}, 75%, 45%) 100%)`;
 }
 
+// Generate beautiful text colors for sender names
+function getNameColor(name, id) {
+  let hash = 0;
+  const seed = name + (id || '');
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash % 360);
+  return `hsl(${h}, 85%, 70%)`; // Bright HSL suitable for dark theme
+}
+
 // Get initials
 function getInitials(title) {
   if (!title) return '?';
@@ -150,14 +161,23 @@ function getInitials(title) {
 // Get user avatar URL or fallback
 function getUserAvatarHtml(author) {
   const initials = getInitials(author.name || author.first_name || author.title);
-  const color = getAvatarColor(author.name || author.first_name || '', author.telegram_id);
+  const color = getAvatarColor(author.name || author.first_name || '', author.telegram_id || author.id);
+  const userId = author.id || author.telegram_id;
 
-  if (author.username) {
-    // Fetch Telegram web avatar redirector
-    const userpicUrl = `https://t.me/i/userpic/320/${author.username}.jpg`;
+  const primaryUrl = userId ? `/api/users/${userId}/avatar?${getInitDataQuery()}` : '';
+  const fallbackUrl = author.username ? `https://t.me/i/userpic/320/${author.username}.jpg` : '';
+
+  if (primaryUrl) {
     return `
       <div class="avatar" style="background: ${color}">
-        <img src="${userpicUrl}" class="avatar-img" onerror="this.style.display='none'" alt="">
+        <img src="${primaryUrl}" class="avatar-img" onerror="if(this.dataset.triedFallback !== 'true' && '${fallbackUrl}') { this.dataset.triedFallback = 'true'; this.src = '${fallbackUrl}'; } else { this.style.display = 'none'; }" alt="">
+        <span class="avatar-initials">${initials}</span>
+      </div>
+    `;
+  } else if (fallbackUrl) {
+    return `
+      <div class="avatar" style="background: ${color}">
+        <img src="${fallbackUrl}" class="avatar-img" onerror="this.style.display='none'" alt="">
         <span class="avatar-initials">${initials}</span>
       </div>
     `;
@@ -452,7 +472,7 @@ function renderQuoteDetails(data) {
       }
 
       // Author name only on the FIRST message of consecutive block
-      const authorColor = getAvatarColor(author.name || author.first_name || '', authorId);
+      const authorColor = getNameColor(author.name || author.first_name || '', authorId);
       const authorNameHtml = isFirstFromThisAuthor 
         ? `<div class="tg-author-name" style="color: ${authorColor}; font-size: 13px; font-weight: 600; margin-bottom: 2px;">${escapeHtml(author.name || author.first_name)}</div>`
         : '';
@@ -513,14 +533,27 @@ function renderQuoteDetails(data) {
     moreGroupSlider.innerHTML = '<div style="color: var(--tg-hint); font-size: 12px; padding: 10px;">No other quotes</div>';
   }
 
-  // 6. Floating Original Sticker Button
-  if (quote.file_id) {
+  // 6. Floating Original Sticker Button (opens the Telegram message link)
+  if (quote.source && quote.source.chat_id && quote.source.message_ids && quote.source.message_ids.length > 0) {
+    originalBtn.style.display = 'block';
     originalBtn.onclick = () => {
-      // Trigger Telegram sticker preview or view sticker
-      tg.sendData(JSON.stringify({ action: 'view_sticker', file_id: quote.file_id }));
+      let chatId = String(quote.source.chat_id);
+      if (chatId.startsWith('-100')) {
+        chatId = chatId.substring(4);
+      } else if (chatId.startsWith('-')) {
+        chatId = chatId.substring(1);
+      }
+      const msgId = quote.source.message_ids[0];
+      const groupUsername = currentGroup && currentGroup.username;
+      
+      const link = groupUsername
+        ? `https://t.me/${groupUsername}/${msgId}`
+        : `https://t.me/c/${chatId}/${msgId}`;
+        
+      tg.openTelegramLink(link);
     };
   } else {
-    originalBtn.onclick = null;
+    originalBtn.style.display = 'none';
   }
 }
 

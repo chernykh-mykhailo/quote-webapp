@@ -355,6 +355,58 @@ app.post('/api/quotes/:quoteId/vote', authMiddleware, async (req, res) => {
   }
 });
 
+// API: Proxy/serve Telegram user avatar by user_id dynamically
+app.get('/api/users/:userId/avatar', authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const botToken = process.env.BOT_TOKEN;
+    if (!botToken) return res.status(500).json({ error: 'Bot token not configured' });
+
+    // 1. Fetch user profile photos list
+    const photosUrl = `https://api.telegram.org/bot${botToken}/getUserProfilePhotos?user_id=${userId}&limit=1`;
+    const photosResponse = await fetch(photosUrl);
+    if (!photosResponse.ok) {
+      return res.status(404).json({ error: 'User photos not found' });
+    }
+    const photosData = await photosResponse.json();
+    if (!photosData.ok || !photosData.result || photosData.result.total_count === 0) {
+      return res.status(404).json({ error: 'No profile photos' });
+    }
+
+    // Get the file_id of the smallest photo (first size of the first photo)
+    const fileId = photosData.result.photos[0][0].file_id;
+
+    // 2. Get file path from Telegram
+    const getFileUrl = `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`;
+    const fileResponse = await fetch(getFileUrl);
+    if (!fileResponse.ok) {
+      return res.status(404).json({ error: 'File path not found' });
+    }
+    const fileData = await fileResponse.json();
+    if (!fileData.ok || !fileData.result.file_path) {
+      return res.status(404).json({ error: 'File path not resolved' });
+    }
+
+    const filePath = fileData.result.file_path;
+    const downloadUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`;
+
+    // 3. Download the file bytes and pipe
+    const imgResponse = await fetch(downloadUrl);
+    if (!imgResponse.ok) {
+      return res.status(500).json({ error: 'Failed to download avatar' });
+    }
+
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Content-Type', imgResponse.headers.get('content-type') || 'image/jpeg');
+
+    const arrayBuffer = await imgResponse.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err) {
+    console.error('Error fetching user avatar:', err);
+    res.status(500).json({ error: 'Internal server error fetching user avatar' });
+  }
+});
+
 // API: Proxy/serve Telegram user avatar by file_id
 app.get('/api/avatars/:fileId', authMiddleware, async (req, res) => {
   try {
