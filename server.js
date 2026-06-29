@@ -243,6 +243,64 @@ app.get('/api/quotes/:quoteId', authMiddleware, async (req, res) => {
   }
 });
 
+// API: Get a single quote by local_id and groupId (for Deep Links)
+app.get('/api/groups/:groupId/quotes/local/:localId', authMiddleware, async (req, res) => {
+  try {
+    const { groupId, localId } = req.params;
+    
+    // Find the group first to verify membership
+    const userId = req.user.id;
+    const membership = await GroupMember.findOne({ group: groupId, telegram_id: userId });
+    if (!membership) {
+      const groupObj = await Group.findById(groupId);
+      if (!groupObj) return res.status(404).json({ error: 'Group not found' });
+      if (groupObj.settings && groupObj.settings.hidden) {
+        return res.status(403).json({ error: 'Access denied.' });
+      }
+    }
+
+    const quote = await Quote.findOne({
+      group: groupId,
+      local_id: parseInt(localId),
+      forgottenAt: { $exists: false }
+    }).populate('user');
+    
+    if (!quote) return res.status(404).json({ error: 'Quote not found' });
+
+    // Fetch more from author
+    let moreFromAuthor = [];
+    if (quote.authors && quote.authors.length > 0) {
+      const authorId = quote.authors[0].telegram_id;
+      moreFromAuthor = await Quote.find({
+        group: groupId,
+        _id: { $ne: quote._id },
+        'authors.telegram_id': authorId,
+        forgottenAt: { $exists: false }
+      })
+      .sort({ createdAt: -1 })
+      .limit(10);
+    }
+
+    // Fetch more from group
+    const moreFromGroup = await Quote.find({
+      group: groupId,
+      _id: { $ne: quote._id },
+      forgottenAt: { $exists: false }
+    })
+    .sort({ createdAt: -1 })
+    .limit(10);
+
+    res.json({
+      quote,
+      moreFromAuthor,
+      moreFromGroup
+    });
+  } catch (err) {
+    console.error('Error fetching quote by local ID:', err);
+    res.status(500).json({ error: 'Failed to fetch details' });
+  }
+});
+
 // API: Vote on a quote
 app.post('/api/quotes/:quoteId/vote', authMiddleware, async (req, res) => {
   try {

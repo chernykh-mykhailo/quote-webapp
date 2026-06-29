@@ -219,18 +219,19 @@ async function init() {
   }
 }
 
-// Handle Telegram Deep Link Payload
 function handleStartParam(param) {
-  // Params look like: g_GROUPID or q_QUOTEID_g_GROUPID
   if (param.startsWith('g_')) {
     const groupId = param.substring(2);
     const matchedGroup = groupsData.find(g => g.id === groupId || String(g.telegramId) === groupId);
     if (matchedGroup) loadGroupFeed(matchedGroup);
   } else if (param.startsWith('q_')) {
-    const match = param.match(/^q_([0-9a-fA-F]+)_g_([0-9a-fA-F]+)$/);
+    const match = param.match(/^q_(\d+)_g_([0-9a-fA-F]+)$/);
     if (match) {
-      const quoteId = match[1];
-      openQuoteDetail(quoteId);
+      const localId = match[1];
+      const groupId = match[2];
+      const matchedGroup = groupsData.find(g => g.id === groupId || String(g.telegramId) === groupId);
+      if (matchedGroup) currentGroup = matchedGroup;
+      openQuoteDetail(localId, groupId);
     }
   }
 }
