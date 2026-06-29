@@ -508,6 +508,12 @@ body {
   padding-bottom: 12px;
   margin-bottom: 24px;
   -webkit-overflow-scrolling: touch; /* Momentum scrolling */
+  cursor: grab;
+  user-select: none; /* Prevent text selection during drag */
+}
+
+.horizontal-slider.active-drag {
+  cursor: grabbing;
 }
 
 .horizontal-slider::-webkit-scrollbar {

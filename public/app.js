@@ -691,5 +691,38 @@ allGroupQuotesBtn.addEventListener('click', () => {
   fetchGroupQuotes();
 });
 
+// Drag to scroll helper for desktop/laptop mouse drag
+function makeGrabScrollable(sliderEl) {
+  let isDown = false;
+  let startX;
+  let scrollLeft;
+
+  sliderEl.addEventListener('mousedown', (e) => {
+    isDown = true;
+    sliderEl.classList.add('active-drag');
+    startX = e.pageX - sliderEl.offsetLeft;
+    scrollLeft = sliderEl.scrollLeft;
+  });
+  sliderEl.addEventListener('mouseleave', () => {
+    isDown = false;
+    sliderEl.classList.remove('active-drag');
+  });
+  sliderEl.addEventListener('mouseup', () => {
+    isDown = false;
+    sliderEl.classList.remove('active-drag');
+  });
+  sliderEl.addEventListener('mousemove', (e) => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - sliderEl.offsetLeft;
+    const walk = (x - startX) * 1.5; // Scroll speed multiplier
+    sliderEl.scrollLeft = scrollLeft - walk;
+  });
+}
+
+// Enable drag to scroll for sliders
+makeGrabScrollable(moreAuthorSlider);
+makeGrabScrollable(moreGroupSlider);
+
 // Start app
 init();
