@@ -294,6 +294,13 @@ function handleStartParam(param) {
       const matchedGroup = groupsData.find(g => g.id === groupId || String(g.telegramId) === groupId);
       if (matchedGroup) currentGroup = matchedGroup;
       openQuoteDetail(localId, groupId);
+    } else {
+      const directMatch = param.match(/^q_([0-9a-fA-F]{24})$/);
+      if (directMatch) {
+        const quoteId = directMatch[1];
+        currentGroup = null; // No group for direct guest link
+        openQuoteDetail(quoteId);
+      }
     }
   }
 }
