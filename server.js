@@ -53,6 +53,11 @@ const Quote = mongoose.models.Quote || mongoose.model('Quote', new mongoose.Sche
     }],
     score: { type: Number, default: 0 }
   },
+  source: {
+    chat_id: Number,
+    message_ids: [Number],
+    date: Date
+  },
   local_id: Number,
   forgottenAt: Date
 }, { timestamps: true }));
