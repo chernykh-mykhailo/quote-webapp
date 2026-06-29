@@ -359,7 +359,7 @@ function renderFeed(quotes) {
 }
 
 // Open detailed quote screen
-async function openQuoteDetail(quoteId) {
+async function openQuoteDetail(quoteId, groupId = null) {
   showScreen('detail');
   detailBubbleContent.innerHTML = '<div style="margin: 30px auto;" class="spinner"></div>';
   
@@ -368,14 +368,18 @@ async function openQuoteDetail(quoteId) {
   detailVoteDown.className = 'vote-action-btn down';
 
   try {
-    const response = await fetch(`/api/quotes/${quoteId}?${getInitDataQuery()}`);
+    const url = groupId 
+      ? `/api/groups/${groupId}/quotes/local/${quoteId}?${getInitDataQuery()}`
+      : `/api/quotes/${quoteId}?${getInitDataQuery()}`;
+      
+    const response = await fetch(url);
     if (!response.ok) throw new Error('Details fetch failed');
     
     currentQuoteDetails = await response.json();
     renderQuoteDetails(currentQuoteDetails);
   } catch (err) {
     console.error(err);
-    detailBubbleContent.innerHTML = '<h3>Failed to load quote details.</h3>';
+    detailBubbleContent.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Failed to load quote details</h3><p>Ensure the quote is still available and not forgotten.</p></div>';
   }
 }
 
