@@ -311,6 +311,48 @@ app.get('/api/groups/:groupId/quotes/local/:localId', authMiddleware, async (req
   }
 });
 
+// API: Get all quotes and stats of an author within a group
+app.get('/api/groups/:groupId/authors/:authorId/quotes', authMiddleware, async (req, res) => {
+  try {
+    const { groupId, authorId } = req.params;
+    const authorIdNum = parseInt(authorId);
+
+    // Verify group access
+    const userId = req.user.id;
+    const membership = await GroupMember.findOne({ group: groupId, telegram_id: userId });
+    if (!membership) {
+      const groupObj = await Group.findById(groupId);
+      if (!groupObj) return res.status(404).json({ error: 'Group not found' });
+      if (groupObj.settings && groupObj.settings.hidden) {
+        return res.status(403).json({ error: 'Access denied.' });
+      }
+    }
+
+    const quotes = await Quote.find({
+      group: groupId,
+      'authors.telegram_id': authorIdNum,
+      forgottenAt: { $exists: false }
+    }).sort({ createdAt: -1 }).populate('user');
+
+    const totalReactions = quotes.reduce((sum, q) => sum + (q.rate?.score || 0), 0);
+    
+    // Find best rated quote
+    let bestQuote = null;
+    if (quotes.length > 0) {
+      bestQuote = [...quotes].sort((a, b) => (b.rate?.score || 0) - (a.rate?.score || 0))[0];
+    }
+
+    res.json({
+      quotes,
+      totalReactions,
+      bestQuote
+    });
+  } catch (err) {
+    console.error('Error fetching author quotes:', err);
+    res.status(500).json({ error: 'Failed to fetch author quotes' });
+  }
+});
+
 // API: Vote on a quote
 app.post('/api/quotes/:quoteId/vote', authMiddleware, async (req, res) => {
   try {

@@ -9,6 +9,16 @@ const groupsScreen = document.getElementById('groups-screen');
 const feedScreen = document.getElementById('feed-screen');
 const detailScreen = document.getElementById('detail-screen');
 
+// Author Screen DOM Elements
+const authorScreen = document.getElementById('author-screen');
+const authorBigAvatar = document.getElementById('author-big-avatar');
+const authorProfileName = document.getElementById('author-profile-name');
+const authorStatQuotes = document.getElementById('author-stat-quotes');
+const authorStatReactions = document.getElementById('author-stat-reactions');
+const authorBestQuoteContainer = document.getElementById('author-best-quote-container');
+const authorQuotesTitle = document.getElementById('author-quotes-title');
+const authorQuotesList = document.getElementById('author-quotes-list');
+
 // Header Elements
 const backBtn = document.getElementById('back-btn');
 const groupTitle = document.getElementById('group-title');
@@ -71,7 +81,9 @@ tg.onEvent('themeChanged', applyTheme);
 
 // Handle Back Button
 backBtn.addEventListener('click', () => {
-  if (currentScreen === 'detail') {
+  if (currentScreen === 'author') {
+    showScreen('detail');
+  } else if (currentScreen === 'detail') {
     showScreen('feed');
   } else if (currentScreen === 'feed') {
     showScreen('groups');
@@ -112,6 +124,7 @@ function showScreen(screen) {
     groupsScreen.classList.add('hidden');
     feedScreen.classList.add('hidden');
     detailScreen.classList.remove('hidden');
+    authorScreen.classList.add('hidden');
     backBtn.classList.remove('hidden');
     if (currentGroup) {
       headerGroupAvatar.classList.remove('hidden');
@@ -122,6 +135,15 @@ function showScreen(screen) {
     } else {
       headerGroupAvatar.classList.add('hidden');
     }
+  } else if (screen === 'author') {
+    groupsScreen.classList.add('hidden');
+    feedScreen.classList.add('hidden');
+    detailScreen.classList.add('hidden');
+    authorScreen.classList.remove('hidden');
+    backBtn.classList.remove('hidden');
+    headerGroupAvatar.classList.add('hidden'); // Hide group avatar on profile page
+    groupTitle.textContent = 'Profile';
+    groupSubtitle.textContent = 'Author details';
   }
 }
 
@@ -503,10 +525,20 @@ function renderQuoteDetails(data) {
   }
 
   // 3. Render Metadata Cards
-  const authorName = quote.authors && quote.authors.length > 0 ? quote.authors[0].name : 'Unknown';
+  const firstAuthor = quote.authors && quote.authors.length > 0 ? quote.authors[0] : null;
+  const authorName = firstAuthor ? firstAuthor.name : 'Unknown';
   const quotedBy = quote.user ? (quote.user.first_name || 'bot') : 'bot';
   
   metaAuthor.innerHTML = `${escapeHtml(authorName)} <span style="color: var(--tg-hint); margin-left: 2px; font-weight: bold;">&rsaquo;</span>`;
+  
+  if (firstAuthor) {
+    metaAuthor.parentNode.onclick = () => {
+      openAuthorProfile(firstAuthor.telegram_id, firstAuthor.name, firstAuthor.username);
+    };
+  } else {
+    metaAuthor.parentNode.onclick = null;
+  }
+  
   metaQuotedBy.textContent = quotedBy === authorName ? 'self-quoted' : quotedBy;
   metaPublished.textContent = formatDate(quote.createdAt, 'full');
   metaReactions.textContent = score >= 0 ? `+${score}` : `${score}`;
@@ -554,6 +586,130 @@ function renderQuoteDetails(data) {
     };
   } else {
     originalBtn.style.display = 'none';
+  }
+}
+
+// Open Author Profile Screen
+async function openAuthorProfile(authorId, authorName, authorUsername) {
+  showScreen('author');
+  
+  authorProfileName.textContent = authorName;
+  authorStatQuotes.textContent = '-';
+  authorStatReactions.textContent = '-';
+  authorQuotesTitle.textContent = 'ALL QUOTES';
+  authorBestQuoteContainer.innerHTML = '<div style="margin: 20px auto;" class="spinner"></div>';
+  authorQuotesList.innerHTML = '';
+
+  // Render big avatar in header
+  const initials = getInitials(authorName);
+  const color = getAvatarColor(authorName, authorId);
+  const primaryUrl = `/api/users/${authorId}/avatar?${getInitDataQuery()}`;
+  const fallbackUrl = authorUsername ? `https://t.me/i/userpic/320/${authorUsername}.jpg` : '';
+
+  authorBigAvatar.style.background = color;
+  if (primaryUrl) {
+    authorBigAvatar.innerHTML = `
+      <img src="${primaryUrl}" class="avatar-img" onerror="if(this.dataset.triedFallback !== 'true' && '${fallbackUrl}') { this.dataset.triedFallback = 'true'; this.src = '${fallbackUrl}'; } else { this.style.display = 'none'; }" alt="">
+      <span class="avatar-initials">${initials}</span>
+    `;
+  } else if (fallbackUrl) {
+    authorBigAvatar.innerHTML = `
+      <img src="${fallbackUrl}" class="avatar-img" onerror="this.style.display='none'" alt="">
+      <span class="avatar-initials">${initials}</span>
+    `;
+  } else {
+    authorBigAvatar.innerHTML = `<span class="avatar-initials">${initials}</span>`;
+  }
+
+  try {
+    const response = await fetch(`/api/groups/${currentGroup.id}/authors/${authorId}/quotes?${getInitDataQuery()}`);
+    if (!response.ok) throw new Error('Failed to fetch author profile details');
+    
+    const data = await response.json();
+    const { quotes, totalReactions, bestQuote } = data;
+    
+    authorStatQuotes.textContent = quotes.length;
+    authorStatReactions.textContent = totalReactions >= 0 ? `+${totalReactions}` : totalReactions;
+    authorQuotesTitle.textContent = `ALL QUOTES · ${quotes.length}`;
+
+    // 1. Render Best Quote Bubble
+    authorBestQuoteContainer.innerHTML = '';
+    if (bestQuote) {
+      const messages = bestQuote.payload.messages || [];
+      let lastAuthorId = null;
+      
+      messages.forEach((msg, idx) => {
+        const author = msg.from || { name: 'Deleted User', id: 0, telegram_id: 0 };
+        const authorId = author.id || author.telegram_id;
+        const nextMsg = messages[idx + 1];
+        const nextAuthorId = nextMsg && nextMsg.from ? (nextMsg.from.id || nextMsg.from.telegram_id) : null;
+        
+        const isLastFromThisAuthor = authorId !== nextAuthorId;
+        const isFirstFromThisAuthor = authorId !== lastAuthorId;
+        lastAuthorId = authorId;
+
+        const msgRow = document.createElement('div');
+        msgRow.className = 'detail-msg-row';
+        if (!isFirstFromThisAuthor) msgRow.classList.add('consecutive');
+
+        const avatarHtml = isLastFromThisAuthor ? getUserAvatarHtml(author) : '<div class="avatar-placeholder"></div>';
+        const text = msg.text || '';
+        
+        const authorColor = getNameColor(author.name || author.first_name || '', authorId);
+        const authorNameHtml = isFirstFromThisAuthor 
+          ? `<div class="tg-author-name" style="color: ${authorColor}; font-size: 13px; font-weight: 600; margin-bottom: 2px;">${escapeHtml(author.name || author.first_name)}</div>`
+          : '';
+
+        msgRow.innerHTML = `
+          ${avatarHtml}
+          <div class="tg-bubble-card">
+            ${authorNameHtml}
+            <div class="tg-text">${escapeHtml(text)}</div>
+          </div>
+        `;
+        authorBestQuoteContainer.appendChild(msgRow);
+      });
+      
+      // Make best quote card clickable to open detail view
+      authorBestQuoteContainer.style.cursor = 'pointer';
+      authorBestQuoteContainer.onclick = () => {
+        openQuoteDetail(bestQuote._id);
+      };
+    } else {
+      authorBestQuoteContainer.innerHTML = '<div style="color: var(--tg-hint); text-align: center;">No quotes</div>';
+    }
+
+    // 2. Render All Quotes List
+    authorQuotesList.innerHTML = '';
+    quotes.forEach((q, index) => {
+      const card = document.createElement('div');
+      card.className = 'author-quote-card';
+      
+      let previewText = '';
+      if (q.payload && q.payload.messages && q.payload.messages.length > 0) {
+        previewText = q.payload.messages[0].text || '[Media]';
+      }
+      
+      const score = q.rate && q.rate.score != null ? q.rate.score : 0;
+      
+      card.innerHTML = `
+        <div class="author-quote-card-header">
+          <span>#${q.local_id || index + 1}</span>
+          <span>${formatDate(q.createdAt)}</span>
+        </div>
+        <div class="author-quote-card-text">${escapeHtml(previewText)}</div>
+        <div class="slider-card-footer" style="margin-top: 4px;">
+          <span></span>
+          <span class="${score >= 0 ? 'up' : 'down'}">${score >= 0 ? '↑' : '↓'} ${Math.abs(score)}</span>
+        </div>
+      `;
+      
+      card.addEventListener('click', () => openQuoteDetail(q._id));
+      authorQuotesList.appendChild(card);
+    });
+  } catch (err) {
+    console.error(err);
+    authorBestQuoteContainer.innerHTML = '<div style="color: var(--tg-hint); text-align: center;">Error loading profile</div>';
   }
 }
 
