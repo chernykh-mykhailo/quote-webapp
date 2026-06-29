@@ -329,46 +329,71 @@ body {
 .detail-vote-bar {
   display: flex;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .vote-action-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  background-color: var(--tg-secondary-bg);
+  background-color: #182533;
   border: 1px solid var(--border-color);
-  padding: 8px 16px;
-  border-radius: 10px;
-  color: var(--tg-text);
+  padding: 6px 14px;
+  border-radius: 20px; /* Pill shaped */
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
-.vote-action-btn svg { width: 18px; height: 18px; }
-.vote-action-btn.active.up { background-color: rgba(76, 175, 80, 0.15); color: #4caf50; border-color: #4caf50; }
-.vote-action-btn.active.down { background-color: rgba(244, 67, 54, 0.15); color: #f44336; border-color: #f44336; }
+.vote-action-btn.up {
+  color: #4caf50; /* Green arrow by default */
+}
+
+.vote-action-btn.down {
+  color: #e57373; /* Red arrow by default */
+}
+
+.vote-action-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.vote-action-btn.active.up {
+  background-color: rgba(76, 175, 80, 0.15);
+  border-color: #4caf50;
+}
+
+.vote-action-btn.active.down {
+  background-color: rgba(244, 67, 54, 0.15);
+  border-color: #e57373;
+}
 
 .detail-bubble-container {
-  background: #0e1621;
-  border-radius: 16px;
-  padding: 20px;
+  background: #0f1721; /* Match TG chat bg */
+  border-radius: 14px;
+  padding: 16px;
   margin-bottom: 20px;
   display: flex;
   flex-direction: column;
+  border: 1px solid var(--border-color);
 }
 
 .tg-chat-frame {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px; /* Default small gap for consecutive messages */
 }
 
 .detail-msg-row {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.detail-msg-row.consecutive {
+  margin-top: 3px;
 }
 
 .detail-msg-row .avatar {
@@ -379,19 +404,30 @@ body {
   font-weight: 600;
 }
 
+.avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
 /* Telegram Chat Bubble styling */
 .tg-bubble-card {
   background-color: var(--card-bg);
   border: 1px solid var(--card-border);
   padding: 10px 14px;
   border-radius: 14px;
-  border-bottom-left-radius: 2px;
+  border-bottom-left-radius: 2px; /* Tail at bottom left */
   max-width: 85%;
   color: white;
   display: flex;
   flex-direction: column;
   gap: 4px;
   position: relative;
+}
+
+.detail-msg-row.consecutive .tg-bubble-card {
+  border-bottom-left-radius: 14px; /* No tail */
+  border-top-left-radius: 4px; /* Flattened top-left corner */
 }
 
 .tg-reply-box {

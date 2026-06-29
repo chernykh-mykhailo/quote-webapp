@@ -14,6 +14,7 @@ const backBtn = document.getElementById('back-btn');
 const groupTitle = document.getElementById('group-title');
 const groupSubtitle = document.getElementById('group-subtitle');
 const themeBadge = document.getElementById('theme-badge');
+const headerGroupAvatar = document.getElementById('header-group-avatar');
 
 // Lists & Container Elements
 const groupsList = document.getElementById('groups-list');
@@ -86,6 +87,7 @@ function showScreen(screen) {
     feedScreen.classList.add('hidden');
     detailScreen.classList.add('hidden');
     backBtn.classList.add('hidden');
+    headerGroupAvatar.classList.add('hidden');
     groupTitle.textContent = 'Quotly';
     groupSubtitle.textContent = 'Select a group to view quotes';
     currentGroup = null;
@@ -95,14 +97,31 @@ function showScreen(screen) {
     detailScreen.classList.add('hidden');
     backBtn.classList.remove('hidden');
     if (currentGroup) {
+      headerGroupAvatar.classList.remove('hidden');
+      const initials = getInitials(currentGroup.title);
+      const color = getAvatarColor(currentGroup.title, currentGroup.id);
+      headerGroupAvatar.style.background = color;
+      headerGroupAvatar.innerHTML = `<span class="avatar-initials">${initials}</span>`;
+      
       groupTitle.textContent = currentGroup.title;
       groupSubtitle.textContent = `${currentGroup.quoteCount || 0} quotes · ${currentGroup.memberCount || 0} members`;
+    } else {
+      headerGroupAvatar.classList.add('hidden');
     }
   } else if (screen === 'detail') {
     groupsScreen.classList.add('hidden');
     feedScreen.classList.add('hidden');
     detailScreen.classList.remove('hidden');
     backBtn.classList.remove('hidden');
+    if (currentGroup) {
+      headerGroupAvatar.classList.remove('hidden');
+      const initials = getInitials(currentGroup.title);
+      const color = getAvatarColor(currentGroup.title, currentGroup.id);
+      headerGroupAvatar.style.background = color;
+      headerGroupAvatar.innerHTML = `<span class="avatar-initials">${initials}</span>`;
+    } else {
+      headerGroupAvatar.classList.add('hidden');
+    }
   }
 }
 
@@ -395,12 +414,28 @@ function renderQuoteDetails(data) {
   detailBubbleContent.innerHTML = '';
   
   if (quote.payload && quote.payload.messages && quote.payload.messages.length > 0) {
-    quote.payload.messages.forEach(msg => {
+    const messages = quote.payload.messages;
+    let lastAuthorId = null;
+
+    messages.forEach((msg, idx) => {
+      const author = msg.from || { name: 'Deleted User', id: 0, telegram_id: 0 };
+      const authorId = author.id || author.telegram_id;
+      const nextMsg = messages[idx + 1];
+      const nextAuthorId = nextMsg && nextMsg.from ? (nextMsg.from.id || nextMsg.from.telegram_id) : null;
+      
+      const isLastFromThisAuthor = authorId !== nextAuthorId;
+      const isFirstFromThisAuthor = authorId !== lastAuthorId;
+      
+      lastAuthorId = authorId;
+
       const msgRow = document.createElement('div');
       msgRow.className = 'detail-msg-row';
+      if (!isFirstFromThisAuthor) {
+        msgRow.classList.add('consecutive');
+      }
       
-      const author = msg.from || { name: 'Deleted User', telegram_id: 0 };
-      const avatarHtml = getUserAvatarHtml(author);
+      // Avatar only on the LAST message of consecutive block
+      const avatarHtml = isLastFromThisAuthor ? getUserAvatarHtml(author) : '<div class="avatar-placeholder"></div>';
       const text = msg.text || '';
       
       // Handle replies representation
@@ -416,10 +451,16 @@ function renderQuoteDetails(data) {
         `;
       }
 
+      // Author name only on the FIRST message of consecutive block
+      const authorColor = getAvatarColor(author.name || author.first_name || '', authorId);
+      const authorNameHtml = isFirstFromThisAuthor 
+        ? `<div class="tg-author-name" style="color: ${authorColor}; font-size: 13px; font-weight: 600; margin-bottom: 2px;">${escapeHtml(author.name || author.first_name)}</div>`
+        : '';
+
       msgRow.innerHTML = `
         ${avatarHtml}
         <div class="tg-bubble-card">
-          <div class="tg-author-name" style="color: ${getAvatarColor(author.name || '', author.telegram_id)}">${escapeHtml(author.name || author.first_name)}</div>
+          ${authorNameHtml}
           ${replyHtml}
           <div class="tg-text">${escapeHtml(text)}</div>
         </div>
@@ -445,7 +486,7 @@ function renderQuoteDetails(data) {
   const authorName = quote.authors && quote.authors.length > 0 ? quote.authors[0].name : 'Unknown';
   const quotedBy = quote.user ? (quote.user.first_name || 'bot') : 'bot';
   
-  metaAuthor.textContent = authorName;
+  metaAuthor.innerHTML = `${escapeHtml(authorName)} <span style="color: var(--tg-hint); margin-left: 2px; font-weight: bold;">&rsaquo;</span>`;
   metaQuotedBy.textContent = quotedBy === authorName ? 'self-quoted' : quotedBy;
   metaPublished.textContent = formatDate(quote.createdAt, 'full');
   metaReactions.textContent = score >= 0 ? `+${score}` : `${score}`;
