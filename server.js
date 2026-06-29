@@ -163,9 +163,14 @@ app.get('/api/groups/:groupId/quotes', authMiddleware, async (req, res) => {
 
     let filter = { group: groupId, forgottenAt: { $exists: false } };
 
-    // Search filter
+    // Search filter (text and author details)
     if (search) {
-      filter['payload.messages.text'] = new RegExp(search, 'i');
+      filter.$or = [
+        { 'payload.messages.text': new RegExp(search, 'i') },
+        { 'authors.name': new RegExp(search, 'i') },
+        { 'authors.first_name': new RegExp(search, 'i') },
+        { 'authors.username': new RegExp(search, 'i') }
+      ];
     }
 
     // Top Range date filter
