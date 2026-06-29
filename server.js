@@ -157,6 +157,59 @@ app.get('/api/groups/:groupId/quotes', authMiddleware, async (req, res) => {
     const userId = req.user.id;
     const { sort = 'new', topRange = 'all', search = '' } = req.query;
 
+    if (groupId === 'guest') {
+      const dbUser = await User.findOne({ telegram_id: req.user.id });
+      const userDbId = dbUser ? dbUser._id : null;
+
+      let filter = { group: null, forgottenAt: { $exists: false } };
+      
+      const conditions = [{ 'authors.telegram_id': req.user.id }];
+      if (userDbId) {
+        conditions.push({ user: userDbId });
+      }
+      filter.$or = conditions;
+
+      if (search) {
+        filter.$and = [
+          { $or: conditions },
+          {
+            $or: [
+              { 'payload.messages.text': new RegExp(search, 'i') },
+              { 'authors.name': new RegExp(search, 'i') },
+              { 'authors.first_name': new RegExp(search, 'i') },
+              { 'authors.username': new RegExp(search, 'i') }
+            ]
+          }
+        ];
+        delete filter.$or;
+      }
+
+      if (sort === 'top' && topRange !== 'all') {
+        const now = new Date();
+        let dateLimit = new Date();
+        if (topRange === 'day') dateLimit.setDate(now.getDate() - 1);
+        else if (topRange === 'week') dateLimit.setDate(now.getDate() - 7);
+        else if (topRange === 'month') dateLimit.setDate(now.getDate() - 30);
+        else if (topRange === 'year') dateLimit.setDate(now.getDate() - 365);
+        
+        filter.createdAt = { $gte: dateLimit };
+      }
+
+      let query = Quote.find(filter).populate('user');
+      if (sort === 'new') {
+        query = query.sort({ createdAt: -1 });
+      } else if (sort === 'top') {
+        query = query.sort({ 'rate.score': -1, createdAt: -1 });
+      } else if (sort === 'random') {
+        const count = await Quote.countDocuments(filter);
+        const randomSkip = Math.floor(Math.random() * Math.max(1, count - 50));
+        query = query.skip(randomSkip);
+      }
+
+      const quotes = await query.limit(50);
+      return res.json(quotes);
+    }
+
     const membership = await GroupMember.findOne({ group: groupId, telegram_id: userId });
     if (!membership) {
       const groupObj = await Group.findById(groupId);
@@ -223,22 +276,40 @@ app.get('/api/quotes/:quoteId', authMiddleware, async (req, res) => {
     let moreFromAuthor = [];
     if (quote.authors && quote.authors.length > 0) {
       const authorId = quote.authors[0].telegram_id;
-      moreFromAuthor = await Quote.find({
-        group: quote.group,
+      const authorQuery = {
         _id: { $ne: quote._id },
         'authors.telegram_id': authorId,
         forgottenAt: { $exists: false }
-      })
+      };
+      if (quote.group) {
+        authorQuery.group = quote.group;
+      } else if (quote.source && quote.source.chat_id) {
+        authorQuery['source.chat_id'] = quote.source.chat_id;
+        authorQuery.group = null;
+      } else {
+        authorQuery.group = null;
+      }
+
+      moreFromAuthor = await Quote.find(authorQuery)
       .sort({ createdAt: -1 })
       .limit(10);
     }
 
     // Fetch more from group
-    const moreFromGroup = await Quote.find({
-      group: quote.group,
+    const groupQuery = {
       _id: { $ne: quote._id },
       forgottenAt: { $exists: false }
-    })
+    };
+    if (quote.group) {
+      groupQuery.group = quote.group;
+    } else if (quote.source && quote.source.chat_id) {
+      groupQuery['source.chat_id'] = quote.source.chat_id;
+      groupQuery.group = null;
+    } else {
+      groupQuery.group = null;
+    }
+
+    const moreFromGroup = await Quote.find(groupQuery)
     .sort({ createdAt: -1 })
     .limit(10);
 
@@ -317,22 +388,31 @@ app.get('/api/groups/:groupId/authors/:authorId/quotes', authMiddleware, async (
     const { groupId, authorId } = req.params;
     const authorIdNum = parseInt(authorId);
 
-    // Verify group access
-    const userId = req.user.id;
-    const membership = await GroupMember.findOne({ group: groupId, telegram_id: userId });
-    if (!membership) {
-      const groupObj = await Group.findById(groupId);
-      if (!groupObj) return res.status(404).json({ error: 'Group not found' });
-      if (groupObj.settings && groupObj.settings.hidden) {
-        return res.status(403).json({ error: 'Access denied.' });
+    let quotes;
+    if (groupId === 'guest') {
+      quotes = await Quote.find({
+        group: null,
+        'authors.telegram_id': authorIdNum,
+        forgottenAt: { $exists: false }
+      }).sort({ createdAt: -1 }).populate('user');
+    } else {
+      // Verify group access
+      const userId = req.user.id;
+      const membership = await GroupMember.findOne({ group: groupId, telegram_id: userId });
+      if (!membership) {
+        const groupObj = await Group.findById(groupId);
+        if (!groupObj) return res.status(404).json({ error: 'Group not found' });
+        if (groupObj.settings && groupObj.settings.hidden) {
+          return res.status(403).json({ error: 'Access denied.' });
+        }
       }
-    }
 
-    const quotes = await Quote.find({
-      group: groupId,
-      'authors.telegram_id': authorIdNum,
-      forgottenAt: { $exists: false }
-    }).sort({ createdAt: -1 }).populate('user');
+      quotes = await Quote.find({
+        group: groupId,
+        'authors.telegram_id': authorIdNum,
+        forgottenAt: { $exists: false }
+      }).sort({ createdAt: -1 }).populate('user');
+    }
 
     const totalReactions = quotes.reduce((sum, q) => sum + (q.rate?.score || 0), 0);
     

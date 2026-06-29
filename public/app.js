@@ -308,37 +308,61 @@ function handleStartParam(param) {
 // Render groups
 function renderGroups(groups) {
   groupsList.innerHTML = '';
-  if (!groups || groups.length === 0) {
-    emptyGroups.classList.remove('hidden');
-    return;
-  }
-
+  
   emptyGroups.classList.add('hidden');
   showScreen('groups');
 
-  groups.forEach(group => {
-    const item = document.createElement('div');
-    item.className = 'group-item';
-    
-    const initials = getInitials(group.title);
-    const color = getAvatarColor(group.title, group.id);
-    
-    item.innerHTML = `
-      <div class="group-details">
-        <div class="avatar" style="background: ${color}">${initials}</div>
-        <div>
-          <div class="group-name">${escapeHtml(group.title)}</div>
-          <div class="group-username">${group.quoteCount} quotes · ${group.username ? '@' + group.username : 'Private group'}</div>
-        </div>
+  // Add Guest Quotes item
+  const guestItem = document.createElement('div');
+  guestItem.className = 'group-item guest-group-item';
+  guestItem.style.borderLeft = '4px solid var(--tg-theme-link-color, #2481cc)';
+  
+  guestItem.innerHTML = `
+    <div class="group-details">
+      <div class="avatar" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%)">💬</div>
+      <div>
+        <div class="group-name">Guest Quotes</div>
+        <div class="group-username">Quotes created outside registered groups</div>
       </div>
-      <div class="arrow-icon">
-        <svg viewBox="0 0 24 24"><path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg>
-      </div>
-    `;
-    
-    item.addEventListener('click', () => loadGroupFeed(group));
-    groupsList.appendChild(item);
+    </div>
+    <div class="arrow-icon">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg>
+    </div>
+  `;
+  guestItem.addEventListener('click', () => {
+    loadGroupFeed({
+      id: 'guest',
+      title: 'Guest Quotes',
+      username: ''
+    });
   });
+  groupsList.appendChild(guestItem);
+
+  if (groups && groups.length > 0) {
+    groups.forEach(group => {
+      const item = document.createElement('div');
+      item.className = 'group-item';
+      
+      const initials = getInitials(group.title);
+      const color = getAvatarColor(group.title, group.id);
+      
+      item.innerHTML = `
+        <div class="group-details">
+          <div class="avatar" style="background: ${color}">${initials}</div>
+          <div>
+            <div class="group-name">${escapeHtml(group.title)}</div>
+            <div class="group-username">${group.quoteCount} quotes · ${group.username ? '@' + group.username : 'Private group'}</div>
+          </div>
+        </div>
+        <div class="arrow-icon">
+          <svg viewBox="0 0 24 24"><path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"/></svg>
+        </div>
+      `;
+      
+      item.addEventListener('click', () => loadGroupFeed(group));
+      groupsList.appendChild(item);
+    });
+  }
 }
 
 // Load quotes feed
@@ -629,7 +653,8 @@ async function openAuthorProfile(authorId, authorName, authorUsername) {
   }
 
   try {
-    const response = await fetch(`/api/groups/${currentGroup.id}/authors/${authorId}/quotes?${getInitDataQuery()}`);
+    const groupId = currentGroup ? currentGroup.id : 'guest';
+    const response = await fetch(`/api/groups/${groupId}/authors/${authorId}/quotes?${getInitDataQuery()}`);
     if (!response.ok) throw new Error('Failed to fetch author profile details');
     
     const data = await response.json();
@@ -836,12 +861,19 @@ subtabButtons.forEach(btn => {
   });
 });
 
-// Sliders buttons
 allAuthorQuotesBtn.addEventListener('click', () => {
   if (currentQuoteDetails && currentQuoteDetails.quote && currentQuoteDetails.quote.authors.length > 0) {
     const author = currentQuoteDetails.quote.authors[0];
     searchInput.value = author.name || author.first_name;
     searchFilter = searchInput.value;
+    if (!currentGroup) {
+      const chatId = currentQuoteDetails?.quote?.source?.chat_id;
+      currentGroup = {
+        id: chatId ? String(chatId) : 'guest',
+        title: 'Guest Quotes',
+        username: ''
+      };
+    }
     showScreen('feed');
     fetchGroupQuotes();
   }
@@ -851,6 +883,14 @@ allGroupQuotesBtn.addEventListener('click', () => {
   showScreen('feed');
   searchInput.value = '';
   searchFilter = '';
+  if (!currentGroup) {
+    const chatId = currentQuoteDetails?.quote?.source?.chat_id;
+    currentGroup = {
+      id: chatId ? String(chatId) : 'guest',
+      title: 'Guest Quotes',
+      username: ''
+    };
+  }
   fetchGroupQuotes();
 });
 
