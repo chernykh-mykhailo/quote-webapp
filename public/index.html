@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Quotly Archive</title>
+  <title>Quotly</title>
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- Stylesheets -->
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="dark-theme">
   <div id="app">
@@ -21,12 +21,12 @@
           <svg viewBox="0 0 24 24"><path fill="currentColor" d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/></svg>
         </button>
         <div class="group-info">
-          <h1 id="group-title">Quotly Archive</h1>
+          <h1 id="group-title">QuotLy</h1>
           <p id="group-subtitle">Select a group to view quotes</p>
         </div>
       </div>
       <div class="header-right">
-        <span id="theme-badge" class="badge">Theme: Auto</span>
+        <span id="theme-badge" class="badge">Theme: DARK</span>
       </div>
     </header>
 
@@ -45,14 +45,14 @@
         <p id="error-message">Please open this app from Telegram.</p>
       </div>
 
-      <!-- Groups List Screen -->
+      <!-- 1. Groups List Screen -->
       <div id="groups-screen" class="screen hidden">
         <div class="welcome-banner">
           <h2>💫 My Groups</h2>
-          <p>Select a group to browse generated quote stickers</p>
+          <p>Choose a group to browse all saved quote stickers</p>
         </div>
         <div id="groups-list" class="list-container">
-          <!-- Group items will be injected here -->
+          <!-- Group items injected here -->
         </div>
         <div id="empty-groups" class="empty-state hidden">
           <div class="empty-icon">💬</div>
@@ -61,15 +61,104 @@
         </div>
       </div>
 
-      <!-- Quotes Feed Screen -->
-      <div id="quotes-screen" class="screen hidden">
-        <div id="quotes-feed" class="chat-container">
-          <!-- Quotes will be injected here as Telegram-like chat messages -->
+      <!-- 2. Group Feed Screen -->
+      <div id="feed-screen" class="screen hidden">
+        <!-- Search bar -->
+        <div class="search-container">
+          <input type="text" id="search-input" placeholder="Search by text">
+          <span class="search-icon">🔍</span>
         </div>
-        <div id="empty-quotes" class="empty-state hidden">
+
+        <!-- Main Sorting Tabs -->
+        <div class="tabs-container">
+          <button class="tab-btn active" data-tab="top">🏆 Top</button>
+          <button class="tab-btn" data-tab="new">New</button>
+          <button class="tab-btn" data-tab="random">Random</button>
+        </div>
+
+        <!-- Date Range Subtabs (only visible when "Top" is active) -->
+        <div id="date-subtabs" class="subtabs-container">
+          <button class="subtab-btn" data-range="day">Day</button>
+          <button class="subtab-btn active" data-range="week">Week</button>
+          <button class="subtab-btn" data-range="month">Month</button>
+          <button class="subtab-btn" data-range="year">Year</button>
+          <button class="subtab-btn" data-range="all">All time</button>
+        </div>
+
+        <!-- Quotes Feed List -->
+        <div id="feed-list" class="feed-list-container">
+          <!-- Quote items injected here -->
+        </div>
+
+        <div id="empty-feed" class="empty-state hidden">
           <div class="empty-icon">📜</div>
-          <h3>No Quotes Yet</h3>
-          <p>This group has no saved quotes in the archive yet.</p>
+          <h3>No Quotes Found</h3>
+          <p>No quotes match your search or filter settings.</p>
+        </div>
+      </div>
+
+      <!-- 3. Quote Detail Screen -->
+      <div id="detail-screen" class="screen hidden">
+        <!-- Voting Area / Score Header -->
+        <div class="detail-vote-bar">
+          <button id="detail-vote-up" class="vote-action-btn up">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7,14L12,9L17,14H7Z"/></svg>
+            <span id="detail-vote-up-count">0</span>
+          </button>
+          <button id="detail-vote-down" class="vote-action-btn down">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M7,10L12,15L17,10H7Z"/></svg>
+            <span id="detail-vote-down-count">0</span>
+          </button>
+        </div>
+
+        <!-- The Quote Telegram Bubble Representation -->
+        <div class="detail-bubble-container">
+          <div id="detail-bubble-content" class="tg-chat-frame">
+            <!-- Rendered TG message list -->
+          </div>
+        </div>
+
+        <!-- Metadata Grid Cards -->
+        <div class="metadata-grid">
+          <div class="meta-card">
+            <div class="meta-label">AUTHOR</div>
+            <div id="meta-author" class="meta-value">-</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">QUOTED BY</div>
+            <div id="meta-quotedby" class="meta-value">-</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">PUBLISHED</div>
+            <div id="meta-published" class="meta-value">-</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-label">REACTIONS</div>
+            <div id="meta-reactions" class="meta-value">-</div>
+          </div>
+        </div>
+
+        <!-- MORE FROM THIS AUTHOR -->
+        <div class="section-header">
+          <span>MORE FROM THIS AUTHOR</span>
+          <button id="all-author-quotes-btn" class="text-link-btn">All quotes →</button>
+        </div>
+        <div id="more-author-slider" class="horizontal-slider">
+          <!-- Suggested quotes by author -->
+        </div>
+
+        <!-- MORE FROM THIS GROUP -->
+        <div class="section-header">
+          <span>MORE FROM THIS GROUP</span>
+          <button id="all-group-quotes-btn" class="text-link-btn">All quotes →</button>
+        </div>
+        <div id="more-group-slider" class="horizontal-slider">
+          <!-- Suggested quotes from this group -->
+        </div>
+
+        <!-- Original Floating button at the bottom -->
+        <div class="bottom-action-container">
+          <button id="original-btn" class="primary-action-btn">Original</button>
         </div>
       </div>
     </main>
